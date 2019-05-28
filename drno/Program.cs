@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace drno
+namespace Drno
 {
     class Program
     {
